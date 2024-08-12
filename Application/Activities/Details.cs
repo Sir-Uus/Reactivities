@@ -1,4 +1,5 @@
 using Application.Core;
+using Application.Interfaces;
 using AutoMapper;
 using AutoMapper.QueryableExtensions;
 using Domain;
@@ -12,22 +13,33 @@ namespace Application.Activities
     {
         public class Query : IRequest<Result<ActivityDto>>
         {
-            public Guid Id {get;set;} 
+            public Guid Id { get; set; }
         }
+
         public class Handler : IRequestHandler<Query, Result<ActivityDto>>
         {
             private readonly DataContext _context;
-            public IMapper _mapper;
-            public Handler(DataContext context, IMapper mapper)
+            private readonly IMapper _mapper;
+            private readonly IUserAcessor _userAcessor;
+
+            public Handler(DataContext context, IMapper mapper, IUserAcessor userAcessor)
             {
+                _userAcessor = userAcessor;
                 _mapper = mapper;
                 _context = context;
             }
-            public async Task<Result<ActivityDto>> Handle(Query request, CancellationToken cancellationToken)
+
+            public async Task<Result<ActivityDto>> Handle(
+                Query request,
+                CancellationToken cancellationToken
+            )
             {
-                var activity = await _context.Activities
-                    .ProjectTo<ActivityDto>(_mapper.ConfigurationProvider)
-                    .FirstOrDefaultAsync(x => x.Id == request.Id); 
+                var activity = await _context
+                    .Activities.ProjectTo<ActivityDto>(
+                        _mapper.ConfigurationProvider,
+                        new { currentUsername = _userAcessor.GetUsername() }
+                    )
+                    .FirstOrDefaultAsync(x => x.Id == request.Id);
 
                 return Result<ActivityDto>.Success(activity);
             }
